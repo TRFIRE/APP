@@ -10,6 +10,9 @@
     2. Menu "Gerir Equipe" atualizado.
     3. Controle de Locais (Editar/Excluir) integrado na tela "Locais & Sublocais"
        com deleção e edição em cascata.
+    4. Locais originais removidos do código (hardcoded) e migrados automaticamente
+       para o Firebase, liberando a edição/exclusão.
+    5. Botões de Acesso Rápido no Dashboard corrigidos.
     ============================================================================
     -->
 
@@ -138,7 +141,7 @@
 
         const LOGO_SRC = "logo.png"; 
         const FALLBACK_LOGO = "https://cdn-icons-png.flaticon.com/512/785/785116.png";
-        const LOCATION_OPTIONS = ["ANJUN", "AZUL CARGO", "AREAS COMUNS", "EQ. RESERVA", "LATAM", "MELI", "POWER SOURCE", "TOTAL EXP."];
+        const LOCATION_OPTIONS = []; // Esvaziado: Agora 100% dos locais vêm diretamente do Firebase.
         const EXTINGUISHER_TYPES = ["ABC- 4KG", "ABC- 6KG", "AGUA- 10LT", "AVD- 9LT", "CO²- 6KG", "EM- 9LT", "PÓ BC- 4KG", "PÓ BC- 6KG", "PÓ BC- 8KG", "PÓ BC- 12KG"];
         const DEFAULT_ROUND_LOCATIONS = ["CASA DE BOMBAS / G-100", "TANQUE DE DIESEL / G-100", "RTI / G-100", "GERADOR / G-100", "CASA DE BOMBAS / G-200", "TANQUE DE DIESEL / G-200", "RTI / G-200", "GERADOR / G-200", "GERADOR / G-300"];
         const ROUND_CONDITIONS = [ "QDC - Automatico", "QDC - Manual", "Tanque - 100% Cheio", "Tanque Abaixo do Nivel", "Painel Op. Normalmente", "Painel Com Falhas" ];
@@ -434,7 +437,7 @@
             )
         }
 
-        function DashboardScreen({ db, onOpenMenu, responsibleName, onNavigate, onStartInspection }) {
+        function DashboardScreen({ db, onOpenMenu, responsibleName, onNavigate, onStartInspection, onOpenCategory }) {
             const currentMonth = new Date().toISOString().slice(0, 7);
             const todayStr = new Date().toISOString().slice(0, 10);
             
@@ -526,15 +529,15 @@
                         <div>
                             <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Acesso Rápido</p>
                             <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => { setInspectionType('EXTINTOR'); onNavigate('equipmentCategory'); }} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 active:scale-95 transition-transform">
+                                <button onClick={() => onOpenCategory('EXTINTOR')} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 active:scale-95 transition-transform">
                                     <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-brand-red flex items-center justify-center text-lg"><i className="fas fa-fire-extinguisher"></i></div>
                                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Extintores</span>
                                 </button>
-                                <button onClick={() => { setInspectionType('HIDRANTE'); onNavigate('equipmentCategory'); }} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 active:scale-95 transition-transform">
+                                <button onClick={() => onOpenCategory('HIDRANTE')} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 active:scale-95 transition-transform">
                                     <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 text-brand-orange flex items-center justify-center text-lg"><HydrantIcon className="w-5 h-5 inline" /></div>
                                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Hidrantes</span>
                                 </button>
-                                <button onClick={() => { setInspectionType('SPK'); onNavigate('equipmentCategory'); }} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 active:scale-95 transition-transform">
+                                <button onClick={() => onOpenCategory('SPK')} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 active:scale-95 transition-transform">
                                     <div className="w-10 h-10 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center text-lg"><SpkIcon className="w-6 h-6 inline" /></div>
                                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">VGA (SPK)</span>
                                 </button>
@@ -891,7 +894,7 @@
             };
 
             const filteredList = (subLocationsList || []).filter(sl => sl.mainLocation === selectedMainLocation).sort((a,b) => a.name.localeCompare(b.name));
-            const allMainLocs = [...new Set([...LOCATION_OPTIONS, ...(mainLocationsList || []).map(m => m.name)])].sort();
+            const allMainLocs = [...new Set((mainLocationsList || []).map(m => m.name))].sort();
 
             return (
                 <div className="flex flex-col h-full bg-white dark:bg-brand-dark p-4 overflow-y-auto relative animate-fade-in">
@@ -1512,7 +1515,7 @@
                  const nameUpper = newMainLocName.trim().toUpperCase();
                  if (!nameUpper) return showAlert("Digite o nome do local.", "warning");
                  
-                 const allCurrentLocs = [...new Set([...LOCATION_OPTIONS, ...(mainLocationsList || []).map(m => m.name)])];
+                 const allCurrentLocs = [...new Set((mainLocationsList || []).map(m => m.name))];
                  if (allCurrentLocs.includes(nameUpper)) {
                      return showAlert("Este local já existe.", "warning");
                  }
@@ -1549,7 +1552,7 @@
                  }
              };
 
-             const allMainLocs = [...new Set([...LOCATION_OPTIONS, ...(mainLocationsList || []).map(m => m.name)])].sort();
+             const allMainLocs = [...new Set((mainLocationsList || []).map(m => m.name))].sort();
              const filteredSubLocs = (subLocationsList || []).filter(sl => sl.mainLocation === form.moduleLocation).sort((a,b) => a.name.localeCompare(b.name));
 
              useEffect(() => {
@@ -1703,7 +1706,7 @@
             );
         };
 
-        const ListScreen = ({ data, onNavigate, onToggleDelete, onDeletePermanently, onImportData, currentUser, showAlert, showConfirm, userRole, onEditItem, onOpenMenu }) => {
+        const ListScreen = ({ data, onNavigate, onToggleDelete, onDeletePermanently, onImportData, currentUser, showAlert, showConfirm, userRole, onEditItem, onOpenMenu, mainLocationsList }) => {
             const [showFilter, setShowFilter] = useState(false);
             const [showPdfModal, setShowPdfModal] = useState(false); 
             const [showBackupModal, setShowBackupModal] = useState(false);
@@ -1764,6 +1767,7 @@
 
             const sortedMonths = Object.keys(groupedStructure).sort().reverse();
             const responsibles = useMemo(() => { const unique = new Set(); if (Array.isArray(data)) { data.forEach(item => { if (item && item.responsible) unique.add(item.responsible); }); } return [...unique]; }, [data]);
+            const allMainLocs = [...new Set((mainLocationsList || []).map(m => m.name))].sort();
             
             const handleSelectAll = () => { if (showBin) { if (selectedIds.size === deletedData.length) setSelectedIds(new Set()); else setSelectedIds(new Set(deletedData.map(i => i.id))); } else { if (selectedIds.size === activeData.length) setSelectedIds(new Set()); else setSelectedIds(new Set(activeData.map(i => i.id))); } };
             const toggleSelection = (id) => { const newSet = new Set(selectedIds); if (newSet.has(id)) newSet.delete(id); else newSet.add(id); setSelectedIds(newSet); };
@@ -1993,7 +1997,7 @@
                         </div>
                     )}
                     
-                    {showFilter && !showBin && (<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowFilter(false)}><div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl w-64 border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}><h3 className="font-bold mb-3 dark:text-white text-sm uppercase">Filtrar por</h3><div className="space-y-3"><div><label className="text-xs text-gray-500 block mb-1">De</label><input type="date" value={filters.startDate} onChange={e=>setFilters({...filters, startDate: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white" /></div><div><label className="text-xs text-gray-500 block mb-1">Até</label><input type="date" value={filters.endDate} onChange={e=>setFilters({...filters, endDate: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white" /></div><div><label className="text-xs text-gray-500 block mb-1">Tipo</label><select value={filters.type} onChange={e=>setFilters({...filters, type: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white"><option value="">Todos</option><option value="EXTINTOR">Extintor</option><option value="HIDRANTE">Hidrante</option><option value="SPK">VGA (SPK)</option><option value="RONDA">Ronda</option></select></div><div><label className="text-xs text-gray-500 block mb-1">Responsável</label><select value={filters.responsible} onChange={e=>setFilters({...filters, responsible: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white"><option value="">Todos</option>{responsibles.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div><label className="text-xs text-gray-500 block mb-1">Módulo/Local</label><select value={filters.moduleLocation} onChange={e=>setFilters({...filters, moduleLocation: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white"><option value="">Todos</option>{LOCATION_OPTIONS.map(l => <option key={l} value={l}>{l}</option>)}</select></div><div className="flex gap-2 pt-2"><button onClick={() => { setFilters({startDate:'', endDate:'', type:'', responsible:'', moduleLocation:''}); setViewMonth(new Date().toISOString().slice(0, 7)); }} className="flex-1 py-1 text-xs font-bold text-gray-500 bg-gray-200 dark:bg-gray-700 rounded">Limpar</button><button onClick={() => setShowFilter(false)} className="flex-1 py-1 text-xs font-bold text-white bg-brand-red rounded">Fechar</button></div></div></div></div>)}
+                    {showFilter && !showBin && (<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowFilter(false)}><div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl w-64 border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}><h3 className="font-bold mb-3 dark:text-white text-sm uppercase">Filtrar por</h3><div className="space-y-3"><div><label className="text-xs text-gray-500 block mb-1">De</label><input type="date" value={filters.startDate} onChange={e=>setFilters({...filters, startDate: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white" /></div><div><label className="text-xs text-gray-500 block mb-1">Até</label><input type="date" value={filters.endDate} onChange={e=>setFilters({...filters, endDate: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white" /></div><div><label className="text-xs text-gray-500 block mb-1">Tipo</label><select value={filters.type} onChange={e=>setFilters({...filters, type: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white"><option value="">Todos</option><option value="EXTINTOR">Extintor</option><option value="HIDRANTE">Hidrante</option><option value="SPK">VGA (SPK)</option><option value="RONDA">Ronda</option></select></div><div><label className="text-xs text-gray-500 block mb-1">Responsável</label><select value={filters.responsible} onChange={e=>setFilters({...filters, responsible: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white"><option value="">Todos</option>{responsibles.map(r => <option key={r} value={r}>{r}</option>)}</select></div><div><label className="text-xs text-gray-500 block mb-1">Módulo/Local</label><select value={filters.moduleLocation} onChange={e=>setFilters({...filters, moduleLocation: e.target.value})} className="w-full p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm dark:text-white"><option value="">Todos</option>{allMainLocs.map(l => <option key={l} value={l}>{l}</option>)}</select></div><div className="flex gap-2 pt-2"><button onClick={() => { setFilters({startDate:'', endDate:'', type:'', responsible:'', moduleLocation:''}); setViewMonth(new Date().toISOString().slice(0, 7)); }} className="flex-1 py-1 text-xs font-bold text-gray-500 bg-gray-200 dark:bg-gray-700 rounded">Limpar</button><button onClick={() => setShowFilter(false)} className="flex-1 py-1 text-xs font-bold text-white bg-brand-red rounded">Fechar</button></div></div></div></div>)}
                     
                     {showPdfModal && (
                         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
@@ -2173,9 +2177,23 @@
             
             const [firebaseUser, setFirebaseUser] = useState(null);
             useEffect(() => { if(!auth) return; return auth.onAuthStateChanged(user => { if (user) setFirebaseUser(user); else auth.signInAnonymously().catch(setAuthError); }); }, []);
+            
             useEffect(() => {
                 if(!dbFirestore || !firebaseUser) return;
                 setLoading(true);
+
+                dbFirestore.collection("main_locations").get().then(snapshot => {
+                    if (snapshot.empty) {
+                        const legacyLocations = ["ANJUN", "AZUL CARGO", "AREAS COMUNS", "EQ. RESERVA", "LATAM", "MELI", "POWER SOURCE", "TOTAL EXP."];
+                        const batch = dbFirestore.batch();
+                        legacyLocations.forEach(loc => {
+                            const docRef = dbFirestore.collection("main_locations").doc();
+                            batch.set(docRef, { name: loc });
+                        });
+                        batch.commit().then(() => console.log("Locais nativos migrados com sucesso para o Firebase."));
+                    }
+                }).catch(err => console.error("Erro na migração de locais:", err));
+
                 const q = dbFirestore.collection("inspections").orderBy("created_at", "desc").limit(10000);
                 const unsub1 = q.onSnapshot(s => { 
                     const d=[]; s.forEach(doc=>d.push({id:doc.id,...doc.data()})); 
@@ -2432,7 +2450,7 @@
                     <NotificationModal isOpen={notification.isOpen} message={notification.message} type={notification.type} isConfirmation={notification.isConfirmation} onClose={closeNotification} onConfirm={notification.onConfirm} />
                     
                     {page === 'responsible' && <ResponsibleScreen onConfirm={handleLogin} usersList={users} unitsList={units} showAlert={showAlert} onNavigate={navigateTo} isOnline={isOnline} />}
-                    {page === 'menu' && <DashboardScreen db={db} onOpenMenu={() => setIsMenuOpen(true)} responsibleName={responsible} onNavigate={navigateTo} onStartInspection={handleStartInspection} />}
+                    {page === 'menu' && <DashboardScreen db={db} onOpenMenu={() => setIsMenuOpen(true)} responsibleName={responsible} onNavigate={navigateTo} onStartInspection={handleStartInspection} onOpenCategory={handleOpenCategory} />}
                     {page === 'adminMenu' && <AdminMenuScreen onNavigate={navigateTo} onOpenMenu={() => setIsMenuOpen(true)} />}
                     {page === 'accessControl' && <AccessControlScreen onNavigate={navigateTo} usersList={users} onUpdatePermissions={(id,p)=>dbFirestore.collection("users").doc(id).update({permissions:p})} />}
                     
@@ -2442,7 +2460,6 @@
                     {page === 'userRegister' && <UserRegisterScreen onNavigate={navigateTo} onSaveUser={handleSaveUser} usersList={users} unitsList={units} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} showAlert={showAlert} showConfirm={showConfirm} />}
                     {page === 'unitRegister' && <UnitRegisterScreen onNavigate={navigateTo} onSaveUnit={handleSaveUnit} unitsList={units} onUpdateUnit={handleUpdateUnit} onDeleteUnit={handleDeleteUnit} showAlert={showAlert} showConfirm={showConfirm} />}
                     
-                    {/* A TELA QUE DEU ERRO, AGORA CORRIGIDA COM TODA SEGURANÇA */}
                     {page === 'roundLocRegister' && <RoundLocationsRegisterScreen onNavigate={navigateTo} onSaveLocation={handleSaveRoundLocation} onUpdateLocation={handleUpdateRoundLocation} locationsList={roundLocationsList} onDeleteLocation={handleDeleteRoundLocation} showAlert={showAlert} showConfirm={showConfirm} />}
                     {page === 'subLocRegister' && <SubLocationsRegisterScreen onNavigate={navigateTo} subLocationsList={subLocationsList} onUpdateSubLocation={handleUpdateSubLocation} onDeleteSubLocation={handleDeleteSubLocation} showAlert={showAlert} showConfirm={showConfirm} mainLocationsList={mainLocationsList} onUpdateMainLocation={handleUpdateMainLocation} onDeleteMainLocation={handleDeleteMainLocation} />}
                     
@@ -2461,7 +2478,7 @@
                     }} responsibleName={responsible} onSave={handleSave} inspectionType={inspectionType} showAlert={showAlert} subLocationsList={subLocationsList} onSaveSubLocation={handleSaveSubLocation} mainLocationsList={mainLocationsList} onSaveMainLocation={handleSaveMainLocation} />}
                     
                     {page === 'roundsForm' && <RoundsFormScreen initialData={scanRes} onNavigate={navigateTo} responsibleName={responsible} roundLocation={roundLocation} onSave={handleSave} currentUnit={currentUnit} showAlert={showAlert} />}
-                    {page === 'list' && <ListScreen data={db} onNavigate={navigateTo} onToggleDelete={onToggleDelete} onDeletePermanently={onDeletePermanently} onImportData={onImportData} currentUser={responsible} userRole={userRole} showAlert={showAlert} showConfirm={showConfirm} onEditItem={handleEditItem} onOpenMenu={() => setIsMenuOpen(true)} />}
+                    {page === 'list' && <ListScreen data={db} onNavigate={navigateTo} onToggleDelete={onToggleDelete} onDeletePermanently={onDeletePermanently} onImportData={onImportData} currentUser={responsible} userRole={userRole} showAlert={showAlert} showConfirm={showConfirm} onEditItem={handleEditItem} onOpenMenu={() => setIsMenuOpen(true)} mainLocationsList={mainLocationsList} />}
                     {page === 'adminSetup' && <UserRegisterScreen onNavigate={navigateTo} onSaveUser={handleSaveUser} usersList={users} unitsList={units} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} showAlert={showAlert} showConfirm={showConfirm} backDestination="responsible" />}
                 </ErrorBoundary>
             );
