@@ -13,6 +13,7 @@
     4. Locais originais removidos do código (hardcoded) e migrados automaticamente
        para o Firebase, liberando a edição/exclusão.
     5. Botões de Acesso Rápido no Dashboard corrigidos.
+    6. Adição de Gráfico de Pizza (Distribuição) e Status de Armazenamento.
     ============================================================================
     -->
 
@@ -498,6 +499,52 @@
                 return { countOk, countVencido, countAVencer, alerts: alertsList, total: countOk + countVencido + countAVencer };
             }, [db]);
 
+            // Estatísticas de Distribuição de Dados e Armazenamento do Firebase (Estimado)
+            const distributionStats = useMemo(() => {
+                const activeItems = db.filter(item => !item.deleted);
+                const total = activeItems.length || 1; // previne divisão por zero
+                
+                const extCount = activeItems.filter(i => i.type === 'EXTINTOR').length;
+                const hidCount = activeItems.filter(i => i.type === 'HIDRANTE').length;
+                const spkCount = activeItems.filter(i => i.type === 'SPK').length;
+                const rondaCount = activeItems.filter(i => i.type === 'RONDA').length;
+                
+                const pExt = (extCount / total) * 100;
+                const pHid = (hidCount / total) * 100;
+                const pSpk = (spkCount / total) * 100;
+                const pRon = (rondaCount / total) * 100;
+                
+                // Variáveis cumulativas para o gradiente CSS do gráfico de Pizza
+                const c1 = pExt;
+                const c2 = c1 + pHid;
+                const c3 = c2 + pSpk;
+                
+                const gradient = `conic-gradient(#D32F2F 0% ${c1}%, #F57C00 ${c1}% ${c2}%, #0F766E ${c2}% ${c3}%, #1976D2 ${c3}% 100%)`;
+                
+                // Estimativa de armazenamento
+                // Pega o tamanho do JSON e soma aprox. 150KB para cada imagem vinculada.
+                let estimatedBytes = new Blob([JSON.stringify(db)]).size;
+                activeItems.forEach(item => {
+                    if (item.hasPhoto) estimatedBytes += 150 * 1024; 
+                });
+                
+                const usedMB = (estimatedBytes / (1024 * 1024));
+                const totalMB = 1024; // 1 GB Total no plano gratuito base do Firebase Firestore/Storage
+                const freeMB = totalMB - usedMB;
+                const usedPct = Math.min(100, (usedMB / totalMB) * 100);
+
+                return {
+                    extCount, hidCount, spkCount, rondaCount,
+                    pExt, pHid, pSpk, pRon,
+                    gradient,
+                    usedMB: usedMB.toFixed(2),
+                    totalMB: totalMB.toFixed(2),
+                    freeMB: freeMB.toFixed(2),
+                    usedPct: usedPct.toFixed(2),
+                    totalItems: activeItems.length
+                };
+            }, [db]);
+
             const pctOk = stats.total ? (stats.countOk / stats.total) * 100 : 0;
             const pctAVencer = stats.total ? (stats.countAVencer / stats.total) * 100 : 0;
             const pctVencido = stats.total ? (stats.countVencido / stats.total) * 100 : 0;
@@ -596,6 +643,66 @@
                                 <div className="bg-red-50 dark:bg-red-900/10 py-3 rounded-xl border border-red-100 dark:border-red-900/30">
                                     <p className="text-[9px] text-red-700 dark:text-red-500 font-black uppercase mb-0.5 tracking-wider">Vencidos</p>
                                     <p className="text-red-600 font-black text-xl">{stats.countVencido}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* NOVO: Gráfico de Distribuição e Armazenamento */}
+                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-gray-800 dark:text-white text-sm font-black uppercase tracking-wide">Volume de Dados</h3>
+                                <span className="text-[10px] font-bold bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">Total: {distributionStats.totalItems}</span>
+                            </div>
+                            
+                            {/* Gráfico de Pizza (Donut) */}
+                            <div className="flex items-center justify-center mb-6">
+                                <div 
+                                    className="w-36 h-36 rounded-full relative shadow-sm"
+                                    style={{ background: distributionStats.gradient }}
+                                >
+                                    {/* Centro branco do Donut */}
+                                    <div className="absolute inset-[15%] bg-white dark:bg-gray-800 rounded-full flex flex-col items-center justify-center shadow-inner">
+                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total</span>
+                                        <span className="text-xl font-black text-gray-800 dark:text-white">{distributionStats.totalItems}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Legenda do Gráfico */}
+                            <div className="grid grid-cols-2 gap-3 text-[10px] font-bold mb-6 px-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#D32F2F] shadow-sm"></span><span className="dark:text-gray-300 text-gray-700">Extintores</span></div>
+                                    <span className="text-gray-500">{distributionStats.pExt.toFixed(1)}%</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F57C00] shadow-sm"></span><span className="dark:text-gray-300 text-gray-700">Hidrantes</span></div>
+                                    <span className="text-gray-500">{distributionStats.pHid.toFixed(1)}%</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#0F766E] shadow-sm"></span><span className="dark:text-gray-300 text-gray-700">VGA/SPK</span></div>
+                                    <span className="text-gray-500">{distributionStats.pSpk.toFixed(1)}%</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#1976D2] shadow-sm"></span><span className="dark:text-gray-300 text-gray-700">Rondas</span></div>
+                                    <span className="text-gray-500">{distributionStats.pRon.toFixed(1)}%</span>
+                                </div>
+                            </div>
+
+                            {/* Armazenamento Estimado */}
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Armazenamento Firebase (Est.)</h4>
+                                    <i className="fas fa-cloud text-blue-500 opacity-70"></i>
+                                </div>
+                                
+                                <div className="flex h-2.5 rounded-full overflow-hidden mb-2 bg-gray-100 dark:bg-gray-700 shadow-inner">
+                                    <div style={{width: `${distributionStats.usedPct}%`}} className="bg-blue-500 hover:opacity-80 transition-opacity"></div>
+                                </div>
+                                
+                                <div className="flex justify-between text-[10px] font-bold">
+                                    <span className="text-gray-500">Usado: <span className="text-blue-600 dark:text-blue-400">{distributionStats.usedMB} MB</span></span>
+                                    <span className="text-gray-500">Livre: <span className="text-green-500">{distributionStats.freeMB} MB</span></span>
+                                    <span className="text-gray-400">Total: {distributionStats.totalMB} MB</span>
                                 </div>
                             </div>
                         </div>
